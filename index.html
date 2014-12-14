@@ -6,10 +6,11 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <link rel="stylesheet" href="leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="css/leaflet.css" />
+  <link rel="stylesheet" href="font-awesome/css/font-awesome.min.css" />
   <!--<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
   <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.css" />-->
-  <link href="font-awesome/css/font-awesome.min.css" rel="stylesheet">
+  
   <style>
     body {
       padding: 0;
@@ -111,12 +112,12 @@
   <div id="reset"><i class="fa fa-question fa-2x"></i></div>
   <div id="map"></div>
 
-  <script src="zepto.js"></script>
+  <script src="js/zepto.js"></script>
   <!--<script src="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.js"></script>-->
-  <script src="leaflet/dist/leaflet.js"></script>
-  <script src="topojson.v1.min.js"></script>
+  <script src="js/leaflet.js"></script>
+  <script src="js/topojson.min.js"></script>
   <script>
-
+    var baseURL = (window.location.hostname === "localhost") ? "http://localhost:5000" : "http://dev.macrostrat.org"
     // Create a map and set an initial view
     var map = L.map('map').setView([43, -89], 8);
 
@@ -128,6 +129,7 @@
 
     // This is our GeoJSON/TopoJSON layer
     var mapData;
+
     /*L.tileLayer('http://localhost:5000/tiles/gmna/{z}/{x}/{y}.png', {
       maxZoom: 10,
       opacity: 0.2
@@ -166,12 +168,12 @@
       if (d.which == 13) {
         d.preventDefault();
         var searchTerm = $("#enter_unit>form>input").val();
-        $.getJSON("http://localhost:5000/api/defs/strat_names?name=" + searchTerm, function(data) {
+        $.getJSON(baseURL + "/api/defs/strat_names?name=" + searchTerm, function(data) {
           if (data.success.data.length > 0) {
             console.log("valid name!");
             getUnits(searchTerm);
           } else {
-            $.getJSON("http://localhost:5000/api/defs/strat_names?name_like=" + searchTerm, function(data) {
+            $.getJSON(baseURL + "/api/defs/strat_names?name_like=" + searchTerm, function(data) {
               if (data.success.data.length === 0) {
                 inputerror();
                 console.log("sorry hommie, can't find that name");
@@ -186,12 +188,12 @@
           }
         });
       }
-        
     });
 
     function getUnits(name) {
       hideinput();
-      $.getJSON("http://localhost:5000/api/geologic_units?type=gmus&format=topojson_bare&unit_name=" + name, function(data) {
+      
+      $.getJSON(baseURL + "/api/geologic_units?type=gmus&format=topojson_bare&unit_name=" + name, function(data) {
         mapData = L.geoJson(topojson.feature(data, data.objects.output), {
           style: function(feature) {
             return {
