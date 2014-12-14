@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>GMUS Unit Query</title>
+  <meta charset="utf-8" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <link rel="stylesheet" href="leaflet/dist/leaflet.css" />
+  <!--<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.css" />-->
+  <link href="font-awesome/css/font-awesome.min.css" rel="stylesheet">
+  <style>
+    body {
+      padding: 0;
+      margin: 0;
+    }
+    html, body, #map {
+      height: 100%;
+      width: 100%;
+    }
+    #enter_unit {
+      position: absolute;
+      z-index: 10000;
+      font-family: 'Helvetica', sans-serif;
+      width: 100%;
+      height: 100%;
+      margin: 0 auto;
+      text-align: center;
+      background-color: rgba(119, 119, 119, 0.3);
+      display: table;
+    }
+    #enter_unit > form {
+      margin: 0 auto;
+      display: table-cell;
+      vertical-align: middle;
+    }
+    #enter_unit > form > input {
+      border-radius: 6px;
+      border: none;
+      box-shadow: 3px 3px 5px 6px #ccc;
+      padding-right: 15%;
+      padding-left: 15%;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      font-size: 2em;
+      display: table-cell;
+      vertical-align: middle;
+      margin-right: -40px;
+      margin-left: -40px;
+    }
+    #valid, #invalid {
+      display: none;
+    }
+    .fa-check-circle {
+      color: #2E8B57;
+      display: inline-block;
+      vertical-align: middle;
+      padding-top: 25%;
+    }
+    .fa-frown-o {
+      color: #DC143C;
+      display: inline-block;
+      vertical-align: middle;
+      padding-top: 25%;
+    }
+    #waiting {
+      display: none;
+      color: #2E8B57;
+      font-size: 13em;
+      text-align: center;
+      position: absolute;
+      z-index: 10000;
+      margin: 0 auto;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(119, 119, 119, 0.3);
+    }
+    #waiting > i {
+      display: table-cell;
+      vertical-align: middle;
+      margin: 0 auto;
+    }
+    #reset {
+      position: absolute;
+      z-index: 1000;
+      bottom: 20px;
+      right: 10px;
+      display: none;
+      cursor: pointer;
+    }
+    @media(max-width: 500px) {
+      #enter_unit > form > input {
+        font-size: 1em;
+      }
+      #reset {
+        bottom: 35px;
+      }
+    }
+    </style>
+</head>
+<body>
+  <div id="enter_unit">
+    <form>
+      <input type="text" placeholder="Enter a unit...">
+      <i id="valid" class="fa fa-check-circle fa-2x"></i>
+      <i id="invalid" class="fa fa-frown-o fa-2x"></i>
+    </form>
+  </div>
+  <div id="waiting"><i class="fa fa-refresh fa-spin"></i></div>
+  <div id="reset"><i class="fa fa-question fa-2x"></i></div>
+  <div id="map"></div>
+
+  <script src="zepto.js"></script>
+  <!--<script src="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.js"></script>-->
+  <script src="leaflet/dist/leaflet.js"></script>
+  <script src="topojson.v1.min.js"></script>
+  <script>
+
+    // Create a map and set an initial view
+    var map = L.map('map').setView([43, -89], 8);
+
+    // Add some Stamen tiles
+    L.tileLayer('http://{s}.tile.stamen.com/toner-lite/{z}/{x}/{y}.png', {
+      maxZoom: 12,
+      attribution: 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>. Data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.'
+    }).addTo(map);
+
+    // This is our GeoJSON/TopoJSON layer
+    var mapData;
+    /*L.tileLayer('http://localhost:5000/tiles/gmna/{z}/{x}/{y}.png', {
+      maxZoom: 10,
+      opacity: 0.2
+    }).addTo(map);*/
+    
+    function showinput() {
+      $("#enter_unit").css("display", "table");
+      $("#reset").css("display", "none");
+    }
+
+    function hideinput() {
+      $("#enter_unit").css("display", "none");
+      $("#waiting").css("display", "table");
+      $("#valid").css("display", "none");
+      $("#invalid").css("display", "none");
+      $("#enter_unit>form>input").css("border", "none");
+    }
+
+    function hidewaiting() {
+      $("#waiting").css("display", "none");
+      $("#reset").css("display", "block");
+    }
+
+    function inputerror() {
+      $("#enter_unit>form>input").css("border", "6px solid red");
+    }
+
+    $("#reset").click(function(d) {
+      mapData.clearLayers();
+      showinput();
+      $("#enter_unit>form>input").val("");
+    });
+
+    $("#enter_unit>form>input").on("keypress",function(d) {
+      //d.preventDefault();
+      if (d.which == 13) {
+        d.preventDefault();
+        var searchTerm = $("#enter_unit>form>input").val();
+        $.getJSON("http://localhost:5000/api/defs/strat_names?name=" + searchTerm, function(data) {
+          if (data.success.data.length > 0) {
+            console.log("valid name!");
+            getUnits(searchTerm);
+          } else {
+            $.getJSON("http://localhost:5000/api/defs/strat_names?name_like=" + searchTerm, function(data) {
+              if (data.success.data.length === 0) {
+                inputerror();
+                console.log("sorry hommie, can't find that name");
+              } else if (data.success.data.length === 1) {
+                console.log("valid name on second attempt!");
+                getUnits(searchTerm);
+              } else {
+                inputerror();
+                console.log("too many found");
+              }
+            });
+          }
+        });
+      }
+        
+    });
+
+    function getUnits(name) {
+      hideinput();
+      $.getJSON("http://localhost:5000/api/geologic_units?type=gmus&format=topojson_bare&unit_name=" + name, function(data) {
+        mapData = L.geoJson(topojson.feature(data, data.objects.output), {
+          style: function(feature) {
+            return {
+              color: feature.properties.interval_color,
+              fillOpacity: 0.8,
+              opacity: 0.8,
+              weight: 1
+            };
+          },
+
+        // Bind some actions to each polygon
+          onEachFeature: function (feature, layer) {
+            var rocktypes = "",
+                liths = "";
+
+            for (var i = 1; i < 4; i++) {
+              if (feature.properties["rt"+i].length > 1) {
+                rocktypes += feature.properties["rt"+i] + ", ";
+              }
+            }
+            
+            for (var i = 1; i < 6; i++) {
+              if (feature.properties["lith"+i].length > 1) {
+                liths += feature.properties["lith"+i] + ", ";
+              }
+            }
+            layer.bindPopup("<strong>Unit link:</strong> " + feature.properties.unit_link + "<br><strong>Age:</strong> " + feature.properties.min_age + " - " + feature.properties.max_age + "<br><strong>Rock type:</strong> " + rocktypes.substr(0, rocktypes.length - 2, -2) + "<br><strong>Lithologies:</strong> " + liths.substr(0, liths.length - 2, -2));
+          }
+        }).addTo(map);
+
+        map.fitBounds(mapData.getBounds());
+        hidewaiting();
+      });
+    }
+
+  </script>
+</body>
+</html>
