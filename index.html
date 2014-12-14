@@ -109,7 +109,7 @@
     </form>
   </div>
   <div id="waiting"><i class="fa fa-refresh fa-spin"></i></div>
-  <div id="reset"><i class="fa fa-question fa-2x"></i></div>
+  <div id="reset"><i class="fa fa-search fa-2x"></i></div>
   <div id="map"></div>
 
   <script src="js/zepto.js"></script>
@@ -117,118 +117,127 @@
   <script src="js/leaflet.js"></script>
   <script src="js/topojson.min.js"></script>
   <script>
-    var baseURL = (window.location.hostname === "localhost") ? "http://localhost:5000" : "http://dev.macrostrat.org"
-    // Create a map and set an initial view
-    var map = L.map('map').setView([43, -89], 8);
+    (function() {
+      var baseURL = (window.location.hostname === "localhost") ? "http://localhost:5000" : "http://dev.macrostrat.org"
+      // Create a map and set an initial view
+      var map = L.map('map').setView([43, -89], 8);
 
-    // Add some Stamen tiles
-    L.tileLayer('http://{s}.tile.stamen.com/toner-lite/{z}/{x}/{y}.png', {
-      maxZoom: 12,
-      attribution: 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>. Data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.'
-    }).addTo(map);
+      // Add some Stamen tiles
+      L.tileLayer('http://{s}.tile.stamen.com/toner-lite/{z}/{x}/{y}.png', {
+        maxZoom: 12,
+        attribution: 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>. Data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.'
+      }).addTo(map);
 
-    // This is our GeoJSON/TopoJSON layer
-    var mapData;
+      // This is our GeoJSON/TopoJSON layer
+      var mapData;
 
-    /*L.tileLayer('http://localhost:5000/tiles/gmna/{z}/{x}/{y}.png', {
-      maxZoom: 10,
-      opacity: 0.2
-    }).addTo(map);*/
-    
-    function showinput() {
-      $("#enter_unit").css("display", "table");
-      $("#reset").css("display", "none");
-    }
+      /*L.tileLayer('http://localhost:5000/tiles/gmna/{z}/{x}/{y}.png', {
+        maxZoom: 10,
+        opacity: 0.2
+      }).addTo(map);*/
+      
+      function showinput() {
+        $("#enter_unit").css("display", "table");
+        $("#reset").css("display", "none");
+      }
 
-    function hideinput() {
-      $("#enter_unit").css("display", "none");
-      $("#waiting").css("display", "table");
-      $("#valid").css("display", "none");
-      $("#invalid").css("display", "none");
-      $("#enter_unit>form>input").css("border", "none");
-    }
+      function hideinput() {
+        $("#enter_unit").css("display", "none");
+        $("#waiting").css("display", "table");
+        $("#valid").css("display", "none");
+        $("#invalid").css("display", "none");
+        $("#enter_unit>form>input").css("border", "none");
+      }
 
-    function hidewaiting() {
-      $("#waiting").css("display", "none");
-      $("#reset").css("display", "block");
-    }
+      function hidewaiting() {
+        $("#waiting").css("display", "none");
+        $("#reset").css("display", "block");
+      }
 
-    function inputerror() {
-      $("#enter_unit>form>input").css("border", "6px solid red");
-    }
+      function inputerror() {
+        $("#enter_unit>form>input").css("border", "6px solid red");
+      }
 
-    $("#reset").click(function(d) {
-      mapData.clearLayers();
-      showinput();
-      $("#enter_unit>form>input").val("");
-    });
+      $("#reset").click(function(d) {
+        mapData.clearLayers();
+        showinput();
+        $("#enter_unit>form>input").val("");
+      });
 
-    $("#enter_unit>form>input").on("keypress",function(d) {
-      //d.preventDefault();
-      if (d.which == 13) {
-        d.preventDefault();
-        var searchTerm = $("#enter_unit>form>input").val();
-        $.getJSON(baseURL + "/api/defs/strat_names?name=" + searchTerm, function(data) {
-          if (data.success.data.length > 0) {
-            console.log("valid name!");
-            getUnits(searchTerm);
-          } else {
-            $.getJSON(baseURL + "/api/defs/strat_names?name_like=" + searchTerm, function(data) {
-              if (data.success.data.length === 0) {
-                inputerror();
-                console.log("sorry hommie, can't find that name");
-              } else if (data.success.data.length === 1) {
-                console.log("valid name on second attempt!");
-                getUnits(searchTerm);
-              } else {
-                inputerror();
-                console.log("too many found");
-              }
-            });
+      $("#enter_unit>form>input").on("keypress",function(d) {
+        //d.preventDefault();
+        if (d.which == 13) {
+          d.preventDefault();
+          var searchTerm = $("#enter_unit>form>input").val();
+
+          $.getJSON(baseURL + "/api/defs/strat_names?name=" + searchTerm, function(data) {
+            if (data.success.data.length > 0) {
+              console.log("valid name!");
+              getUnits(searchTerm);
+            } else {
+              $.getJSON(baseURL + "/api/defs/strat_names?name_like=" + searchTerm, function(data) {
+                if (data.success.data.length === 0) {
+                  inputerror();
+                  console.log("sorry hommie, can't find that name");
+                } else if (data.success.data.length === 1) {
+                  console.log("valid name on second attempt!");
+                  getUnits(searchTerm);
+                } else {
+                  inputerror();
+                  console.log("too many found");
+                }
+              });
+            }
+          });
+        }
+      });
+
+      function getUnits(name) {
+        hideinput();
+
+        $.getJSON(baseURL + "/api/geologic_units?type=gmus&format=topojson_bare&unit_name=" + name, function(data) {
+          // If no geometries came back, throw an error
+          if (data.objects.output.geometries.length < 1) {
+            hidewaiting()
+            showinput()
+            return inputerror();
           }
+          
+          mapData = L.geoJson(topojson.feature(data, data.objects.output), {
+            style: function(feature) {
+              return {
+                color: feature.properties.interval_color,
+                fillOpacity: 0.8,
+                opacity: 0.8,
+                weight: 1
+              };
+            },
+
+          // Bind some actions to each polygon
+            onEachFeature: function (feature, layer) {
+              var rocktypes = "",
+                  liths = "";
+
+              for (var i = 1; i < 4; i++) {
+                if (feature.properties["rt"+i].length > 1) {
+                  rocktypes += feature.properties["rt"+i] + ", ";
+                }
+              }
+              
+              for (var i = 1; i < 6; i++) {
+                if (feature.properties["lith"+i].length > 1) {
+                  liths += feature.properties["lith"+i] + ", ";
+                }
+              }
+              layer.bindPopup("<strong>Unit link:</strong> " + feature.properties.unit_link + "<br><strong>Age:</strong> " + feature.properties.min_age + " - " + feature.properties.max_age + "<br><strong>Rock type:</strong> " + rocktypes.substr(0, rocktypes.length - 2, -2) + "<br><strong>Lithologies:</strong> " + liths.substr(0, liths.length - 2, -2));
+            }
+          }).addTo(map);
+
+          map.fitBounds(mapData.getBounds());
+          hidewaiting();
         });
       }
-    });
-
-    function getUnits(name) {
-      hideinput();
-      
-      $.getJSON(baseURL + "/api/geologic_units?type=gmus&format=topojson_bare&unit_name=" + name, function(data) {
-        mapData = L.geoJson(topojson.feature(data, data.objects.output), {
-          style: function(feature) {
-            return {
-              color: feature.properties.interval_color,
-              fillOpacity: 0.8,
-              opacity: 0.8,
-              weight: 1
-            };
-          },
-
-        // Bind some actions to each polygon
-          onEachFeature: function (feature, layer) {
-            var rocktypes = "",
-                liths = "";
-
-            for (var i = 1; i < 4; i++) {
-              if (feature.properties["rt"+i].length > 1) {
-                rocktypes += feature.properties["rt"+i] + ", ";
-              }
-            }
-            
-            for (var i = 1; i < 6; i++) {
-              if (feature.properties["lith"+i].length > 1) {
-                liths += feature.properties["lith"+i] + ", ";
-              }
-            }
-            layer.bindPopup("<strong>Unit link:</strong> " + feature.properties.unit_link + "<br><strong>Age:</strong> " + feature.properties.min_age + " - " + feature.properties.max_age + "<br><strong>Rock type:</strong> " + rocktypes.substr(0, rocktypes.length - 2, -2) + "<br><strong>Lithologies:</strong> " + liths.substr(0, liths.length - 2, -2));
-          }
-        }).addTo(map);
-
-        map.fitBounds(mapData.getBounds());
-        hidewaiting();
-      });
-    }
-
+    })();
   </script>
 </body>
 </html>
