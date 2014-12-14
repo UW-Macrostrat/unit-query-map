@@ -173,7 +173,7 @@
           $.getJSON(baseURL + "/api/defs/strat_names?name=" + searchTerm, function(data) {
             if (data.success.data.length > 0) {
               console.log("valid name!");
-              getUnits(searchTerm);
+              getUnits(data.success.data[0].name);
             } else {
               $.getJSON(baseURL + "/api/defs/strat_names?name_like=" + searchTerm, function(data) {
                 if (data.success.data.length === 0) {
@@ -181,7 +181,7 @@
                   console.log("sorry hommie, can't find that name");
                 } else if (data.success.data.length === 1) {
                   console.log("valid name on second attempt!");
-                  getUnits(searchTerm);
+                  getUnits(data.success.data[0].name);
                 } else {
                   inputerror();
                   console.log("too many found");
