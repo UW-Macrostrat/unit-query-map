@@ -7,9 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <link rel="stylesheet" href="css/leaflet.css" />
-  <!--<link rel="stylesheet" href="font-awesome/css/font-awesome.min.css" />-->
   <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
-  <!--<link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.css" />-->
   
   <style>
     body {
@@ -65,6 +63,9 @@
       vertical-align: middle;
       padding-top: 25%;
     }
+    .fa-search {
+      color: whitesmoke;
+    }
     #waiting {
       display: none;
       color: #2E8B57;
@@ -113,29 +114,25 @@
   <div id="map"></div>
 
   <script src="js/zepto.js"></script>
-  <!--<script src="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.js"></script>-->
   <script src="js/leaflet.js"></script>
   <script src="js/topojson.min.js"></script>
   <script>
     (function() {
       var baseURL = (window.location.hostname === "localhost") ? "http://localhost:5000" : "http://dev.macrostrat.org"
       // Create a map and set an initial view
-      var map = L.map('map').setView([43, -89], 8);
+      var map = L.map('map').setView([40, -97], 5);
 
       // Add some Stamen tiles
-      L.tileLayer('http://{s}.tile.stamen.com/toner-lite/{z}/{x}/{y}.png', {
+      L.tileLayer('http://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', {
         maxZoom: 12,
-        attribution: 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>. Data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.'
+        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="http://cartodb.com/attributions">CartoDB</a>',
+        subdomains: 'abcd'
       }).addTo(map);
 
       // This is our GeoJSON/TopoJSON layer
       var mapData;
 
-      /*L.tileLayer('http://localhost:5000/tiles/gmna/{z}/{x}/{y}.png', {
-        maxZoom: 10,
-        opacity: 0.2
-      }).addTo(map);*/
-      
+
       function showinput() {
         $("#enter_unit").css("display", "table");
         $("#reset").css("display", "none");
@@ -168,27 +165,7 @@
         //d.preventDefault();
         if (d.which == 13) {
           d.preventDefault();
-          var searchTerm = $("#enter_unit>form>input").val();
-
-          $.getJSON(baseURL + "/api/defs/strat_names?name=" + searchTerm, function(data) {
-            if (data.success.data.length > 0) {
-              console.log("valid name!");
-              getUnits(data.success.data[0].name);
-            } else {
-              $.getJSON(baseURL + "/api/defs/strat_names?name_like=" + searchTerm, function(data) {
-                if (data.success.data.length === 0) {
-                  inputerror();
-                  console.log("sorry hommie, can't find that name");
-                } else if (data.success.data.length === 1) {
-                  console.log("valid name on second attempt!");
-                  getUnits(data.success.data[0].name);
-                } else {
-                  inputerror();
-                  console.log("too many found");
-                }
-              });
-            }
-          });
+          getUnits($("#enter_unit>form>input").val());
         }
       });
 
@@ -219,13 +196,13 @@
                   liths = "";
 
               for (var i = 1; i < 4; i++) {
-                if (feature.properties["rt"+i].length > 1) {
+                if (feature.properties["rt"+i] && feature.properties["rt"+i].length > 1) {
                   rocktypes += feature.properties["rt"+i] + ", ";
                 }
               }
               
               for (var i = 1; i < 6; i++) {
-                if (feature.properties["lith"+i].length > 1) {
+                if (feature.properties["lith"+i] && feature.properties["lith"+i].length > 1) {
                   liths += feature.properties["lith"+i] + ", ";
                 }
               }
